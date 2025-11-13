@@ -1,0 +1,58 @@
+﻿using EvakuacioSzimulacio.Core.Pathfinding;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using System.Collections.Generic;
+
+namespace EvakuacioSzimulacio.Core
+{
+	internal class Person
+	{
+        private Vector2 direction;
+		Texture2D texture;
+		public Vector2 Position { get; set; }
+		public Vector2 Direction { get { return direction; }set { direction = value; } }
+		public float Speed { get; set; }
+        public CircleHitbox Hitbox { get; set; }
+        public List<Node> Path { get; set; }
+        public Vector2 lastTarget {  get; set; }
+        public Person(Texture2D ctorTexture, Vector2 ctorPosition, float ctorSpeed, float circleHitboxRadius)
+        {
+            texture = ctorTexture;
+            Position = ctorPosition;
+            Speed = ctorSpeed;
+
+			Hitbox = new CircleHitbox(ctorPosition,circleHitboxRadius);
+        }
+
+        public Vector2 NextPositionOption(GameTime gameTime)
+        {
+            return Position + Direction * Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+        }
+
+        public void Draw(SpriteBatch spriteBatch, Color color)
+        {
+            spriteBatch.Draw(texture, new Rectangle((int)Position.X - (int)Hitbox.Radius, (int)Position.Y-(int)Hitbox.Radius,(int)Hitbox.Radius*2,(int)Hitbox.Radius*2),Color.Red);
+			spriteBatch.Draw(texture,
+				new Rectangle((int)(Position.X), (int)(Position.Y), 2, 2),
+				Color.Black);  //Person középpontja
+		}
+	}
+
+    class CircleHitbox
+    {
+        public Vector2 Center;
+        public float Radius;
+        public Color Coloring;
+
+
+
+
+
+		public CircleHitbox(Vector2 center,float radius)
+		{
+			Center = center;
+            Radius = radius;
+            Coloring = Color.Red;
+		}
+	}
+}

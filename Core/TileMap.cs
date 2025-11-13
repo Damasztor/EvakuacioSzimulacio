@@ -1,0 +1,116 @@
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using System;
+
+namespace EvakuacioSzimulacio.Core
+{
+	public enum TileType
+	{
+		Empty, Wall, Exit
+	}
+	internal class TileMap
+	{
+		public Tile[,] tileMap;
+		private Texture2D tileTexture;
+		public int tileSize = 32;
+		private int mapSize = 15;
+		private Random rnd = new Random();
+
+		public TileMap(GraphicsDevice graphicsDevice)
+		{
+			tileMap = TileMapMaker();
+
+			tileTexture = new Texture2D(graphicsDevice, 1, 1);
+			tileTexture.SetData(new[] {Color.White});
+		}
+		public Tile[,] TileMapMaker() // Egyszerűen csak a széle fal, a közepe föld MÁR NEM IGAZ
+		{
+			Tile[,] temp = new Tile[mapSize, mapSize];
+
+			for (int y = 0; y < mapSize; y++)
+			{
+				for (int x = 0; x < mapSize; x++)
+				{
+					TileType type;
+
+					// Kijárat a jobb oldalon középen
+					if (x == mapSize - 1 && y == mapSize / 2)
+						type = TileType.Exit;
+					// Falak a széleken
+					else if (x == 0 || y == 0 || x == mapSize - 1 || y == mapSize - 1)
+						type = TileType.Wall;
+					else if(rnd.Next(1,30) == 1)
+					{
+						type = TileType.Wall;
+					}
+					else
+						type = TileType.Empty;
+
+					Vector2 center = new Vector2(x * tileSize + tileSize / 2, y * tileSize + tileSize / 2);
+					temp[x, y] = new Tile(center, tileSize, tileSize, type);
+				}
+			}
+
+			return temp;
+		}
+
+		public void Draw(SpriteBatch spriteBatch)
+		{
+			for (int y = 0; y < tileMap.GetLength(1); y++)
+			{
+				for (int x = 0; x < tileMap.GetLength(0); x++)
+				{
+					Tile tile = tileMap[x, y];
+
+					Color color = Color.Gray;
+					if (tile.Type == TileType.Wall) color = Color.Black;
+					else if (tile.Type == TileType.Exit) color = Color.Green;
+
+					spriteBatch.Draw(tileTexture, tile.Hitbox.ToRectangle(), color);
+				}
+			}
+		}
+		
+	}
+	public class Tile
+	{
+		public Vector2 Center;
+		public float Width;
+		public float Height;
+		public TileType Type;
+		public RectangleHitbox Hitbox { get; private set; }
+
+
+        public Tile(Vector2 center, float widht, float height, TileType type)
+        {
+            Center = center;
+			Width = widht;
+			Height = height;
+			Type = type;
+			Hitbox = new RectangleHitbox(center, widht,height);
+        }
+
+    }
+    public class  RectangleHitbox
+    {
+		public Vector2 Center;
+		public float Width;
+		public float Height;
+
+		public Vector2 TopLeft;
+		public Vector2 BottomRight;
+
+		public RectangleHitbox(Vector2 center, float width, float height)
+		{
+			Center = center;
+			Width = width;
+			Height = height;
+			TopLeft = new Vector2(Center.X - width/2, Center.Y - height/2);
+			BottomRight = new Vector2(Center.X + width/2, Center.Y + height/2);
+		}
+		public Rectangle ToRectangle()
+		{
+			return new Rectangle((int)Center.X - (int)Width/2,(int)Center.Y - (int)Height/2,(int)Width,(int)Height);
+		}
+	}
+}
