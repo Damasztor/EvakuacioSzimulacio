@@ -19,14 +19,23 @@ namespace EvakuacioSzimulacio.Core.Pathfinding
 			{
 				for(int j = 0; j < height; j++)
 				{
-					nodes[i, j] = new Node(i, j, map.tileMap[i,j].Type == TileType.Empty);
+					nodes[i, j] = new Node(i, j, map.tileMap[i,j].Type == TileType.Empty || map.tileMap[i,j].Type == TileType.Chair);
 				}
 			}
-
+			;
 
 			int tilesize = map.tileSize;
-			Node startNode = nodes[(int)start.X,(int)start.Y];
-			Node targetNode = nodes[(int)target.X,(int)target.Y];
+			//if(start.X !< 0 || start.Y !< 0 || start.X !> width || start.Y !> height)
+			//{
+
+			//}
+			//if (target.X! < 0 || target.Y! < 0 || target.X! > width || target.Y! > height)
+			//{
+
+			//}
+			Node startNode = nodes[(int)start.X, (int)start.Y];
+			Node targetNode = nodes[(int)target.X, (int)target.Y];
+
 
 			List<Node> openList = new List<Node>();
 			List<Node> closedList = new List<Node>();

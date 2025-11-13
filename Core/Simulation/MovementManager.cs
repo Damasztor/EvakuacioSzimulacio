@@ -23,7 +23,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		public MovementManager(List<Person> people, TileMap tileMap)
         {
             People = people;
-            spatialGrid = new SpatialGrid(32,1000,1000);
+			int width = tileMap.tileSize;
+            spatialGrid = new SpatialGrid(32,10000,10000);
 			maxDistance = Math.Sqrt(spatialGrid.CellSize * spatialGrid.CellSize + spatialGrid.CellSize*spatialGrid.CellSize) * 2;
             Tiles = tileMap.tileMap;
             spatialGrid.ClearTiles();
@@ -185,8 +186,12 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					var targetCell = new Vector2((int)(target.X / tileMap.tileSize), (int)(target.Y / tileMap.tileSize));
 
 					List<Node> path = AStarPathfinding.AStarPathFinding(tileMap, startCell, targetCell);
-					p.Path = new List<Node>(path);
-					p.lastTarget = target;
+					if (path != null)
+					{
+						p.Path = new List<Node>(path);
+						p.lastTarget = target;
+					}
+					
 					//if (path != null && path.Count > 1)
 					//{
 					//	Vector2 nextCellCenter = new Vector2(path[1].X * tileMap.tileSize + 0.5f, path[1].Y * tileMap.tileSize + 0.5f);
@@ -213,12 +218,12 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					int xTarget = (int)nextCellCenter.X;
 					int yTarget = (int)nextCellCenter.Y;
 
-					Debug.WriteLine($"{xTarget / 32} == {xPos / 32} és {yTarget / 32} == {yPos / 32}");
+					//Debug.WriteLine($"{xTarget / 32} == {xPos / 32} és {yTarget / 32} == {yPos / 32}");
 
 					if (xTarget / 32 == xPos / 32 && yTarget / 32 == yPos / 32)
 					{
 						p.Path.RemoveAt(0);
-						Debug.WriteLine("removed " + p.Path.Count);
+						//Debug.WriteLine("removed " + p.Path.Count);
 					}
 				}
 
@@ -267,7 +272,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 
 
-                
+
 				//Debug.WriteLine("position :" + p.Position + " speed: " + p.Direction.Length() + " direction: " + p.Direction);
 				p.Hitbox.Center = p.Position;
 
