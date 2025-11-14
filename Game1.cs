@@ -46,7 +46,7 @@ namespace EvakuacioSzimulacio
 
 			_people = new List<Person>
 			{
-				new Person(_circleTexture, new Vector2(100,100),50f,10f),
+				new Person(_circleTexture, new Vector2(2,2)*32,50f,10f),
 				new Person(_circleTexture, new Vector2(250,350),70f,10f),
 				new Person(_circleTexture, new Vector2(300,95),70f,10f),
 				//new Person(_circleTexture, new Vector2(150,300),40f,10f)
@@ -89,12 +89,17 @@ namespace EvakuacioSzimulacio
 				int idxY = MovedCameraPosition.Y / _map.tileSize;
 				int width = _map.tileMap.GetLength(1);
 				int height = _map.tileMap.GetLength(0);
+				bool insidemap = idxX > 0 && idxY > 0 && idxX < height && idxY < width;
 				
-				if (!(MovedCameraPosition.X < 0 || MovedCameraPosition.X > width * _map.tileSize || MovedCameraPosition.Y < 0 || MovedCameraPosition.Y > height * _map.tileSize) || _map.tileMap[idxX, idxY].Type == TileType.Empty || _map.tileMap[idxX, idxY].Type == TileType.Chair)
+				if(insidemap)
 				{
-					_target = new Vector2(MovedCameraPosition.X, MovedCameraPosition.Y);
-					_movementManager.target = _target;
+					if (_map.tileMap[idxX, idxY].Type == TileType.Empty || _map.tileMap[idxX, idxY].Type == TileType.Chair)
+					{
+						_target = new Vector2(MovedCameraPosition.X, MovedCameraPosition.Y);
+						_movementManager.target = _target;
+					}
 				}
+				
 				
 			}
 

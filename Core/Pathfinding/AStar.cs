@@ -76,7 +76,8 @@ namespace EvakuacioSzimulacio.Core.Pathfinding
 				{
 					if (!neighbour.Walkable || closedList.Contains(neighbour)) continue;
 
-					float commulativeLength = current.DistanceFromBeginning + Vector2.Distance(new Vector2(current.X, current.Y),new Vector2(neighbour.X, neighbour.Y));
+					float stepCost = Vector2.Distance(new Vector2(current.X, current.Y),new Vector2(neighbour.X, neighbour.Y)) * map.tileMap[neighbour.X, neighbour.Y].MovementCost;
+					float commulativeLength = current.DistanceFromBeginning + stepCost;
 
 					if(!openList.Contains(neighbour) || commulativeLength < neighbour.DistanceFromBeginning)
 					{

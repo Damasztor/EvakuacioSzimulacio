@@ -10,11 +10,13 @@ namespace EvakuacioSzimulacio.Core
         private Vector2 direction;
 		Texture2D texture;
 		public Vector2 Position { get; set; }
-		public Vector2 Direction { get { return direction; }set { direction = value; } }
-		public float Speed { get; set; }
+		public Vector2 Direction { get { return direction; } set { direction = value; } }
+		public float Speed { get; set; } //ez maximális érték amit felvehet az adott person gyorsaságként. Ennél gyorsabb nem lehet
         public CircleHitbox Hitbox { get; set; }
         public List<Node> Path { get; set; }
         public Vector2 lastTarget {  get; set; }
+        public Tile CurrentTile { get; set; }
+
         public Person(Texture2D ctorTexture, Vector2 ctorPosition, float ctorSpeed, float circleHitboxRadius)
         {
             texture = ctorTexture;
@@ -43,9 +45,6 @@ namespace EvakuacioSzimulacio.Core
         public Vector2 Center;
         public float Radius;
         public Color Coloring;
-
-
-
 
 
 		public CircleHitbox(Vector2 center,float radius)

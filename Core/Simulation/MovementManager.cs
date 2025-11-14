@@ -118,24 +118,6 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 
 
-						//Vector2 centerToCollisionPoint = collisionPoint - p.Position;
-						//float collisionPushback = p.Hitbox.Radius - centerToCollisionPoint.Length();
-
-						//if (centerToCollisionPoint.X == 0)
-						//{
-						//	p.Direction = new Vector2(p.Direction.X, 0);
-						//	p.Position -= Vector2.Normalize(centerToCollisionPoint) * collisionPushback;
-						//}
-						//else
-						//{
-						//	p.Direction = new Vector2(0, p.Direction.Y);
-						//	p.Position += Vector2.Normalize(centerToCollisionPoint) * collisionPushback;
-						//}
-
-
-
-
-
 						Vector2 centerToCollisionPoint = collisionPoint - p.Position;
 						float distanceToCollision = centerToCollisionPoint.Length();
 						float overlap = p.Hitbox.Radius - distanceToCollision;
@@ -170,18 +152,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				if (target != Vector2.Zero && target != p.lastTarget)
 				{
-					//Vector2 targetDirection = target.Value - p.Position;
-					//targetDirection = Vector2.Normalize(targetDirection);
-					//if(targetDirection.Length() == 0)
-					//{
-					//	;//debug line vector NaN NaN
-					//}
-					//p.Direction += targetDirection;
-
-
-
-
-
+					
 					var startCell = new Vector2((int)(p.Position.X / tileMap.tileSize), (int)(p.Position.Y / tileMap.tileSize));
 					var targetCell = new Vector2((int)(target.X / tileMap.tileSize), (int)(target.Y / tileMap.tileSize));
 
@@ -192,15 +163,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 						p.lastTarget = target;
 					}
 					
-					//if (path != null && path.Count > 1)
-					//{
-					//	Vector2 nextCellCenter = new Vector2(path[1].X * tileMap.tileSize + 0.5f, path[1].Y * tileMap.tileSize + 0.5f);
-					//	Vector2 pathDir = nextCellCenter - p.Position;
-					//	if (pathDir != Vector2.Zero)
-					//		pathDir = Vector2.Normalize(pathDir);
-
-					//	p.Direction += pathDir;
-					//}
+					
 				}
 				if(p.Path != null && p.Path.Count > 0)
 				{
@@ -220,7 +183,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 					//Debug.WriteLine($"{xTarget / 32} == {xPos / 32} és {yTarget / 32} == {yPos / 32}");
 
-					if (xTarget / 32 == xPos / 32 && yTarget / 32 == yPos / 32)
+					if (xTarget / tileMap.tileSize == xPos / tileMap.tileSize && yTarget / tileMap.tileSize == yPos / tileMap.tileSize)
 					{
 						p.Path.RemoveAt(0);
 						//Debug.WriteLine("removed " + p.Path.Count);
@@ -266,7 +229,11 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				}
                 if(p.Direction.Length() > 0)
                 {
-                    p.Position += p.Direction * (float)gameTime.ElapsedGameTime.TotalSeconds;
+					int tileX = (int)(p.Position.X / tileMap.tileSize);
+					int tileY = (int)(p.Position.Y / tileMap.tileSize);
+
+					p.CurrentTile = tileMap.tileMap[tileX, tileY];
+					p.Position += p.Direction * (float)gameTime.ElapsedGameTime.TotalSeconds / p.CurrentTile.MovementCost;
                 }
 
 
