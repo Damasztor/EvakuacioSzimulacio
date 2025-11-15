@@ -65,8 +65,9 @@ namespace EvakuacioSzimulacio.Core.Simulation
                 foreach(var nearppl in nearbyPeople)
                 {
                     var distance = Vector2.Distance(p.Position, nearppl.Position);
-                    var direction = p.Position - nearppl.Position;
-                    var force = (maxDistance - distance)/4000;
+                    //var direction = p.Position - nearppl.Position;
+					//var force = (maxDistance - distance)/4000;
+					var force = 1f;
 					
 					float avoidStrength = 0.05f;
                     if(collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
@@ -99,7 +100,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
                     else
                     {
 						//Debug.WriteLine("NEM");
-						p.Direction += (float)force * direction;
+						//p.Direction += (float)force * direction;
 						
 					}
 					
@@ -227,7 +228,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 						}
 					}
 				}
-                if(p.Direction.Length() > 0)
+                if(p.Direction.Length() >= 0)
                 {
 					int tileX = (int)(p.Position.X / tileMap.tileSize);
 					int tileY = (int)(p.Position.Y / tileMap.tileSize);
@@ -243,6 +244,14 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				//Debug.WriteLine("position :" + p.Position + " speed: " + p.Direction.Length() + " direction: " + p.Direction);
 				p.Hitbox.Center = p.Position;
 
+
+				//Ha rálép az exit tile-ra, akkor kiszedjük a listából, így a következő frameben már kirajzolni se fogjuk
+				if(p.CurrentTile.Type == TileType.Exit)
+				{
+					p.IsExited = true;
+				}
+
+				
 
 
                 

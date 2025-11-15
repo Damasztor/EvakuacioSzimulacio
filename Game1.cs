@@ -4,8 +4,10 @@ using EvakuacioSzimulacio.Core.Simulation;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 //using System.Drawing;
 //using System.Drawing;
 
@@ -22,7 +24,10 @@ namespace EvakuacioSzimulacio
 		private MovementManager _movementManager;
 		private Vector2 _target = Vector2.Zero;
 		Camera _camera;
+		Random rnd;
 
+
+		private List<Person> _exitedPeople;
 
 		public Game1()
 		{
@@ -41,21 +46,32 @@ namespace EvakuacioSzimulacio
 			_personTexture = new Texture2D(GraphicsDevice, 1, 1);
 			_personTexture.SetData(new[] { Color.White });
 			_camera = new Camera();
+			rnd = new Random();
+			_exitedPeople = new List<Person>();
 
 			
 
 			_people = new List<Person>
 			{
-				new Person(_circleTexture, new Vector2(2,2)*32,50f,10f),
-				new Person(_circleTexture, new Vector2(250,350),70f,10f),
-				new Person(_circleTexture, new Vector2(300,95),70f,10f),
-				//new Person(_circleTexture, new Vector2(150,300),40f,10f)
+				//new Person(_circleTexture, new Vector2(3,3)*_map.tileSize,50f,10f),
+				//new Person(_circleTexture, new Vector2(3,4)*_map.tileSize,70f,10f),
+				//new Person(_circleTexture, new Vector2(300,95),70f,10f),
+				////new Person(_circleTexture, new Vector2(150,300),40f,10f)
 
 			};
-			_people[0].Direction = new Vector2(10, 10);
-			_people[1].Direction = new Vector2(-40, -10);
-			_people[2].Direction = new Vector2(-30, 20);
-			//_people[3].Direction = new Vector2(1, 5);
+			//_people[0].Direction = new Vector2(10, 10);
+			//_people[1].Direction = new Vector2(-40, -10);
+			//_people[2].Direction = new Vector2(-30, 20);
+			////_people[3].Direction = new Vector2(1, 5);
+			
+
+			foreach(var l in _map.tileMap)
+			{
+				if(l.Type == TileType.Chair && rnd.Next(1,11) < 8)
+				{
+					_people.Add(new Person(_circleTexture, l.Center, rnd.Next(50, 71), 10f));
+				}
+			}
 
 			_movementManager = new MovementManager(_people,_map);
 
@@ -93,7 +109,7 @@ namespace EvakuacioSzimulacio
 				
 				if(insidemap)
 				{
-					if (_map.tileMap[idxX, idxY].Type == TileType.Empty || _map.tileMap[idxX, idxY].Type == TileType.Chair)
+					if (_map.tileMap[idxX, idxY].Type == TileType.Empty || _map.tileMap[idxX, idxY].Type == TileType.Chair || _map.tileMap[idxX,idxY].Type == TileType.Exit)
 					{
 						_target = new Vector2(MovedCameraPosition.X, MovedCameraPosition.Y);
 						_movementManager.target = _target;
@@ -121,6 +137,8 @@ namespace EvakuacioSzimulacio
 			_camera.Move(move);
 			_camera.Update();
 			_movementManager.WhereToMove(gameTime);
+			_exitedPeople.AddRange(_people.Where(p => p.IsExited));
+			_people.RemoveAll(p => p.IsExited);
 
 			base.Update(gameTime);
 		}

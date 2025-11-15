@@ -16,14 +16,16 @@ namespace EvakuacioSzimulacio.Core
         public List<Node> Path { get; set; }
         public Vector2 lastTarget {  get; set; }
         public Tile CurrentTile { get; set; }
+        public bool IsExited { get; set; }
 
         public Person(Texture2D ctorTexture, Vector2 ctorPosition, float ctorSpeed, float circleHitboxRadius)
         {
             texture = ctorTexture;
             Position = ctorPosition;
             Speed = ctorSpeed;
-
+            IsExited = false;
 			Hitbox = new CircleHitbox(ctorPosition,circleHitboxRadius);
+            direction = new Vector2(0, 0);
         }
 
         public Vector2 NextPositionOption(GameTime gameTime)
