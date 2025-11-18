@@ -432,19 +432,31 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			
 			if(tleft < 0 && tright < 0) //nev vetíthető egyik félegyenesre sem, a körív részre kell vetíteni
 			{
-
+				Vector2 directionformcircle = Q - circleMiddlePoint;
+				directionformcircle = Vector2.Normalize(directionformcircle) * circleRadius;
+				result = circleMiddlePoint + directionformcircle;
+				
 			}
 			else if(tleft >= 0 && tright < 0) //left félegyenesre vetíthető másikra nem, így left félegyenesre kell vetíteni
 			{
-
+				result = leftstartPoint + leftdirection * tleft;
 			}
 			else if(tleft < 0 && tright >= 0) //right félegyenesre vetíthető a másikra nem, így right félegyenesre kell vetíteni
 			{
-
+				result = rightstartPoint + rightdirection * tright;
 			}
 			else if(tleft >= 0 && tright >= 0) //left és right félegyenesre is vetíthető, így el kell dönteni, hogy melyik pont lesz a legközelebb a vetíteni kívánt ponthoz
 			{
-
+				float distleft = Vector2.Distance(leftstartPoint + leftdirection * tleft, Q);
+				float distright = Vector2.Distance(rightstartPoint + rightdirection * tright, Q);
+				if(distleft < distright)
+				{
+					result = leftstartPoint + leftdirection * tleft;
+				}
+				else
+				{
+					result = rightstartPoint + rightdirection * tright;
+				}
 			}
 			else //valami hiba történt
 			{
