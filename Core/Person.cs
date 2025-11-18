@@ -7,10 +7,12 @@ namespace EvakuacioSzimulacio.Core
 {
 	internal class Person
 	{
+        private int ID { get; set; }
         private Vector2 direction;
 		Texture2D texture;
 		public Vector2 Position { get; set; }
 		public Vector2 Direction { get { return direction; } set { direction = value; } }
+        public Vector2 DesiredVelocity { get; set; }
 		public float Speed { get; set; } //ez maximális érték amit felvehet az adott person gyorsaságként. Ennél gyorsabb nem lehet
         public CircleHitbox Hitbox { get; set; }
         public List<Node> Path { get; set; }
@@ -18,8 +20,9 @@ namespace EvakuacioSzimulacio.Core
         public Tile CurrentTile { get; set; }
         public bool IsExited { get; set; }
 
-        public Person(Texture2D ctorTexture, Vector2 ctorPosition, float ctorSpeed, float circleHitboxRadius)
+        public Person(int id, Texture2D ctorTexture, Vector2 ctorPosition, float ctorSpeed, float circleHitboxRadius)
         {
+            ID = id;
             texture = ctorTexture;
             Position = ctorPosition;
             Speed = ctorSpeed;
@@ -33,12 +36,13 @@ namespace EvakuacioSzimulacio.Core
             return Position + Direction * Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
         }
 
-        public void Draw(SpriteBatch spriteBatch, Color color)
+        public void Draw(SpriteBatch spriteBatch, Color color, SpriteFont font)
         {
             spriteBatch.Draw(texture, new Rectangle((int)Position.X - (int)Hitbox.Radius, (int)Position.Y-(int)Hitbox.Radius,(int)Hitbox.Radius*2,(int)Hitbox.Radius*2),Color.Red);
 			spriteBatch.Draw(texture,
 				new Rectangle((int)(Position.X), (int)(Position.Y), 2, 2),
 				Color.Black);  //Person középpontja
+            spriteBatch.DrawString(font, $"{ID}", Position, Color.Black);
 		}
 	}
 

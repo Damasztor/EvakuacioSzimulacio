@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+//using System.Windows.Forms;
+//using System.Windows.Forms;
 //using System.Drawing;
 //using System.Drawing;
 
@@ -25,7 +27,8 @@ namespace EvakuacioSzimulacio
 		private Vector2 _target = Vector2.Zero;
 		Camera _camera;
 		Random rnd;
-
+		Texture2D pixel;
+		SpriteFont font;
 
 		private List<Person> _exitedPeople;
 
@@ -48,6 +51,7 @@ namespace EvakuacioSzimulacio
 			_camera = new Camera();
 			rnd = new Random();
 			_exitedPeople = new List<Person>();
+			
 
 			
 
@@ -63,15 +67,18 @@ namespace EvakuacioSzimulacio
 			//_people[1].Direction = new Vector2(-40, -10);
 			//_people[2].Direction = new Vector2(-30, 20);
 			////_people[3].Direction = new Vector2(1, 5);
-			
 
-			foreach(var l in _map.tileMap)
-			{
-				if(l.Type == TileType.Chair && rnd.Next(1,11) < 8)
-				{
-					_people.Add(new Person(_circleTexture, l.Center, rnd.Next(50, 71), 10f));
-				}
-			}
+			int id = 0;
+			//foreach(var l in _map.tileMap)
+			//{
+			//	if(l.Type == TileType.Chair && rnd.Next(1,21) < 2)
+			//	{
+			//		_people.Add(new Person(id, _circleTexture, l.Center, rnd.Next(50, 71), 10f));
+			//		id++;
+			//	}
+			//}
+			_people.Add(new Person(0, _circleTexture, new Vector2(336,64), rnd.Next(50, 71), 10f));
+			_people.Add(new Person(1, _circleTexture, new Vector2(368,127), rnd.Next(50, 71), 10f));
 
 			_movementManager = new MovementManager(_people,_map);
 
@@ -82,6 +89,10 @@ namespace EvakuacioSzimulacio
 		{
 			_spriteBatch = new SpriteBatch(GraphicsDevice);
 			_circleTexture = Content.Load<Texture2D>("circle");
+			pixel = new Texture2D(GraphicsDevice, 1, 1);
+			pixel.SetData(new[] { Color.White });
+			font = Content.Load<SpriteFont>("default");
+
 		}
 
 		protected override void Update(GameTime gameTime)
@@ -154,7 +165,8 @@ namespace EvakuacioSzimulacio
 
 			foreach(Person p in _people)
 			{
-				p.Draw(_spriteBatch,p.Hitbox.Coloring);
+				p.Draw(_spriteBatch,p.Hitbox.Coloring,font);
+				
 				//Debug.WriteLine(p.Position);
 				
 			}
@@ -162,6 +174,27 @@ namespace EvakuacioSzimulacio
 
 
 			base.Draw(gameTime);
+		}
+		public void DrawLine(SpriteBatch sb, Vector2 start, Vector2 end, Color color, float thickness = 1f)
+		{
+			Vector2 edge = end - start;
+			float angle = (float)Math.Atan2(edge.Y, edge.X);
+
+			sb.Draw(
+				pixel,
+				new Rectangle(
+					(int)start.X,
+					(int)start.Y,
+					(int)edge.Length(),
+					(int)thickness
+				),
+				null,
+				color,
+				angle,
+				Vector2.Zero,
+				SpriteEffects.None,
+				0
+			);
 		}
 	}
 	public class Camera

@@ -11,42 +11,45 @@ namespace EvakuacioSzimulacio.Core.Simulation
 	{
 		AStar AStarPathfinding;
 		CollisionManager collisionManager;
-        SpatialGrid spatialGrid;
-        List<Person> People;
-        Tile[,] Tiles;
+		SpatialGrid spatialGrid;
+		List<Person> People;
+		Tile[,] Tiles;
 		TileMap tileMap;
-        double maxDistance;
-        Vector2 acceleration = new Vector2(3,3);
+		double maxDistance;
+		Vector2 acceleration = new Vector2(3, 3);
 		public Vector2 target = Vector2.Zero;
-        
+		public List<RVO> personRVO;
+		public List<ORCAConstraint> personORCAConstraints;
 
 		public MovementManager(List<Person> people, TileMap tileMap)
-        {
-            People = people;
+		{
+			People = people;
 			int width = tileMap.tileSize;
-            spatialGrid = new SpatialGrid(32,10000,10000);
-			maxDistance = Math.Sqrt(spatialGrid.CellSize * spatialGrid.CellSize + spatialGrid.CellSize*spatialGrid.CellSize) * 2;
-            Tiles = tileMap.tileMap;
-            spatialGrid.ClearTiles();
+			spatialGrid = new SpatialGrid(32, 10000, 10000);
+			maxDistance = Math.Sqrt(spatialGrid.CellSize * spatialGrid.CellSize + spatialGrid.CellSize * spatialGrid.CellSize) * 2;
+			Tiles = tileMap.tileMap;
+			spatialGrid.ClearTiles();
 			foreach (var t in Tiles)
-            {
+			{
 				spatialGrid.AddTiles(t);
 			}
-            collisionManager = new CollisionManager();
+			collisionManager = new CollisionManager();
 			AStarPathfinding = new AStar();
 			this.tileMap = tileMap;
+			personRVO = new List<RVO>();
+			personORCAConstraints = new List<ORCAConstraint>();
 		}
 		public void WhereToMove(GameTime gameTime)
-        {
-            spatialGrid.Clear();
+		{
+			spatialGrid.Clear();
 			foreach (var p in People)
-            {
+			{
 				spatialGrid.AddPerson(p);
 			}
 			foreach (Person p in People)
-            {
-                List<Person> nearbyPeople = spatialGrid.GetNearbyPeople(p);
-                List<Tile> nearbyTiles = spatialGrid.GetNearbyTiles(p);
+			{
+				List<Person> nearbyPeople = spatialGrid.GetNearbyPeople(p);
+				List<Tile> nearbyTiles = spatialGrid.GetNearbyTiles(p);
 				if (float.IsNaN(p.Direction.X))
 				{
 					p.Direction = new Vector2(0, p.Direction.Y);
@@ -55,59 +58,122 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				{
 					p.Direction = new Vector2(p.Direction.X, 0);
 				}
-                
-                if(nearbyTiles.Count > 0)
-                {
-                    ;//debug line
-                }
-                
-                
-                foreach(var nearppl in nearbyPeople)
-                {
-                    var distance = Vector2.Distance(p.Position, nearppl.Position);
-                    //var direction = p.Position - nearppl.Position;
-					//var force = (maxDistance - distance)/4000;
-					var force = 1f;
-					
-					float avoidStrength = 0.05f;
-                    if(collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
-                    {
-						//Debug.WriteLine("IGEN");
 
-						Vector2 betweenVector = nearppl.Position - p.Position;
-						Vector2 collisionSteeringVector = RotateVector(p.Direction, GetSignedAngle(p.Direction,betweenVector) * avoidStrength);
+				if (nearbyTiles.Count > 0)
+				{
+					;//debug line
+				}
 
-						p.Direction += collisionSteeringVector;
-						p.Hitbox.Coloring = Color.Yellow;
+				Vector2 v_pref = Vector2.Zero;
+				if (p.Path != null && p.Path.Count > 0)
+				{
+					Vector2 nextCellCenter = new Vector2(p.Path[0].X * tileMap.tileSize + tileMap.tileSize / 2, p.Path[0].Y * tileMap.tileSize + tileMap.tileSize / 2);
+					Vector2 vectorToTarget = nextCellCenter - p.Position;
+					float distanceToTarget = vectorToTarget.Length();
 
+					// Feltételezzük, hogy a p.Speed a MaxSpeed
+					float maxSpeed = p.Speed;
 
-						float distanceBetween = betweenVector.Length();
-						Vector2 normalizedBetweenVector = Vector2.Normalize(betweenVector);
-						if(betweenVector.Length() == 0)
-						{
-							;//debug line vector NaN NaN
-						}
-						float minDistance = p.Hitbox.Radius + nearppl.Hitbox.Radius;
-						if (distanceBetween < minDistance)
-						{
-							float distCorrection = (minDistance - distanceBetween)/2;
-							p.Position -= normalizedBetweenVector * distCorrection;
-							p.Hitbox.Center = p.Position;
-						}
-
-						
+					if (distanceToTarget < maxSpeed)
+					{
+						// Target közel van: lassíts, hogy ne lőj túl rajta
+						v_pref = vectorToTarget;
 					}
-                    else
-                    {
-						//Debug.WriteLine("NEM");
-						//p.Direction += (float)force * direction;
-						
+					else if (distanceToTarget > 0)
+					{
+						// Target messze van: menj max. sebességgel
+						v_pref = Vector2.Normalize(vectorToTarget) * maxSpeed;
 					}
+					// Ha distanceToTarget == 0, v_pref marad Vector2.Zero
+				}
+				p.DesiredVelocity = v_pref;
+
+				//--------------------------------------------------------------------------------------ORCA implementáció------------------------------------------------------------------------------
+				personRVO.Clear();
+				personORCAConstraints.Clear();
+				foreach (var nearppl in nearbyPeople)
+				{
+					float sumRadius = p.Hitbox.Radius + nearppl.Hitbox.Radius;
+
+					Vector2 otherPosition = nearppl.Position;
+					Vector2 betweenVectorTwoCenter = otherPosition - p.Position;
+					float distanceBetweenTwoCenter = betweenVectorTwoCenter.Length();
 					
-                    
-                }
-                foreach (var neartiles in nearbyTiles)
-                {
+					Vector2 betweenDirection = Vector2.Normalize(betweenVectorTwoCenter);
+					Vector2 perpendicularVector = new Vector2(-betweenDirection.Y, betweenDirection.X);
+					Vector2 sumVelocityVectorPerTwo = (p.Direction + nearppl.Direction) / 2;
+
+					float theta = MathF.Asin(sumRadius / distanceBetweenTwoCenter);
+					float cos = MathF.Cos(theta);
+					float sin = MathF.Sin(theta);
+
+					Vector2 left = betweenDirection * cos + perpendicularVector * sin;
+					Vector2 right = betweenDirection * cos - perpendicularVector * sin;
+
+					left += sumVelocityVectorPerTwo;
+					right += sumVelocityVectorPerTwo;
+					Vector2 apex = sumVelocityVectorPerTwo;
+
+					personRVO.Add(new RVO(left, right, apex));
+
+
+
+
+
+
+
+				}
+				
+				//-------------------------------------------------------------------------------ORCA implementáció vége--------------------------------------------------------------------------------
+
+
+				//-------------------------------------------------------------------Régi implementáció, ha ütköznek akkor módosítanak------------------------------------------------------------
+				//foreach(var nearppl in nearbyPeople)
+				//{
+				//var distance = Vector2.Distance(p.Position, nearppl.Position);
+				////var direction = p.Position - nearppl.Position;
+				////var force = (maxDistance - distance)/4000;
+				//var force = 1f;
+
+				//float avoidStrength = 0.05f;
+				//if (collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
+				//{
+				//	//Debug.WriteLine("IGEN");
+
+				//	Vector2 betweenVector = nearppl.Position - p.Position;
+				//	Vector2 collisionSteeringVector = RotateVector(p.Direction, GetSignedAngle(p.Direction, betweenVector) * avoidStrength);
+
+				//	p.Direction += collisionSteeringVector;
+				//	p.Hitbox.Coloring = Color.Yellow;
+
+
+				//	float distanceBetween = betweenVector.Length();
+				//	Vector2 normalizedBetweenVector = Vector2.Normalize(betweenVector);
+				//	if (betweenVector.Length() == 0)
+				//	{
+				//		;//debug line vector NaN NaN
+				//	}
+				//	float minDistance = p.Hitbox.Radius + nearppl.Hitbox.Radius;
+				//	if (distanceBetween < minDistance)
+				//	{
+				//		float distCorrection = (minDistance - distanceBetween) / 2;
+				//		p.Position -= normalizedBetweenVector * distCorrection;
+				//		p.Hitbox.Center = p.Position;
+				//	}
+
+
+				//}
+				//else
+				//{
+				//	//Debug.WriteLine("NEM");
+				//	//p.Direction += (float)force * direction;
+
+				//}
+				//-------------------------------------------------------------------------------Régi implementáció vége----------------------------------------------------------------------------
+
+
+				foreach (var neartiles in nearbyTiles)
+				{
 					var distance = Vector2.Distance(p.Position, neartiles.Center);
 					var direction = p.Position - neartiles.Center;
 					var force = (maxDistance - distance) / 8000;
@@ -126,7 +192,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 						if (overlap > 0)
 						{
 							Vector2 collisionNormal = Vector2.Normalize(centerToCollisionPoint);
-							if(centerToCollisionPoint.Length() == 0)
+							if (centerToCollisionPoint.Length() == 0)
 							{
 								;//debug line vector NaN NaN
 							}
@@ -153,7 +219,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				if (target != Vector2.Zero && target != p.lastTarget)
 				{
-					
+
 					var startCell = new Vector2((int)(p.Position.X / tileMap.tileSize), (int)(p.Position.Y / tileMap.tileSize));
 					var targetCell = new Vector2((int)(target.X / tileMap.tileSize), (int)(target.Y / tileMap.tileSize));
 
@@ -163,16 +229,17 @@ namespace EvakuacioSzimulacio.Core.Simulation
 						p.Path = new List<Node>(path);
 						p.lastTarget = target;
 					}
-					
-					
+
+
 				}
-				if(p.Path != null && p.Path.Count > 0)
+				if (p.Path != null && p.Path.Count > 0)
 				{
+					p.DesiredVelocity = p.Position - new Vector2(p.Path[0].X*32, p.Path[0].Y*32);
 					Vector2 nextCellCenter = new Vector2(p.Path[0].X * tileMap.tileSize + tileMap.tileSize / 2, p.Path[0].Y * tileMap.tileSize + tileMap.tileSize / 2);
 					Vector2 pathDirection = nextCellCenter - p.Position;
 					float pullStrength = 4f;
 
-					if(pathDirection != Vector2.Zero)
+					if (pathDirection != Vector2.Zero)
 					{
 						pathDirection = Vector2.Normalize(pathDirection);
 					}
@@ -193,21 +260,21 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 
 
-                float length = p.Direction.Length();
+				float length = p.Direction.Length();
 
-                float currentSpeed = p.Direction.Length();
-                float moveSpeed = Math.Max(length, p.Speed);
-                float speedTolerance = 2f;
+				float currentSpeed = p.Direction.Length();
+				float moveSpeed = Math.Max(length, p.Speed);
+				float speedTolerance = 2f;
 
-				
+
 				if (p.Direction.Length() < p.Speed - speedTolerance)
 				{
 					float accel = (float)acceleration.Length() * (float)gameTime.ElapsedGameTime.TotalSeconds;
 					Vector2 dirNorm = Vector2.Zero;
-					if(p.Direction != Vector2.Zero)
+					if (p.Direction != Vector2.Zero)
 					{
 						dirNorm = Vector2.Normalize(p.Direction);
-						if(p.Direction.Length() == 0)
+						if (p.Direction.Length() == 0)
 						{
 							;//debug line vector NaN NaN
 						}
@@ -218,8 +285,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 						p.Direction = dirNorm * p.Speed;
 				}
 				if (p.Direction.Length() > p.Speed)
-                {
-					if(p.Direction != Vector2.Zero)
+				{
+					if (p.Direction != Vector2.Zero)
 					{
 						p.Direction = Vector2.Normalize(p.Direction) * p.Speed;
 						if (p.Direction.Length() == 0)
@@ -228,14 +295,14 @@ namespace EvakuacioSzimulacio.Core.Simulation
 						}
 					}
 				}
-                if(p.Direction.Length() >= 0)
-                {
+				if (p.Direction.Length() >= 0)
+				{
 					int tileX = (int)(p.Position.X / tileMap.tileSize);
 					int tileY = (int)(p.Position.Y / tileMap.tileSize);
 
 					p.CurrentTile = tileMap.tileMap[tileX, tileY];
 					p.Position += p.Direction * (float)gameTime.ElapsedGameTime.TotalSeconds / p.CurrentTile.MovementCost;
-                }
+				}
 
 
 
@@ -246,22 +313,22 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 
 				//Ha rálép az exit tile-ra, akkor kiszedjük a listából, így a következő frameben már kirajzolni se fogjuk
-				if(p.CurrentTile.Type == TileType.Exit)
+				if (p.CurrentTile.Type == TileType.Exit)
 				{
 					p.IsExited = true;
 				}
 
-				
 
 
-                
+
+
 			}
-        }
+		}
 		float GetSignedAngle(Vector2 a, Vector2 b)
 		{
 			a = Vector2.Normalize(a);
 			b = Vector2.Normalize(b);
-			if(a.Length() ==0 || b.Length() == 0)
+			if (a.Length() == 0 || b.Length() == 0)
 			{
 				;//debug line vector NaN NaN
 			}
@@ -284,6 +351,61 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				v.X * cos - v.Y * sin,
 				v.X * sin + v.Y * cos
 			);
+		}
+		private static Vector2 ProjectOntoRay(Vector2 v, Vector2 rayDir)
+		{
+			// 1. Skaláris vetítés kiszámítása
+			// Képlet: (v · rayDir) / |rayDir|^2
+			float scalar_proj = Vector2.Dot(v, rayDir) / rayDir.LengthSquared();
+
+			// 2. Csúcs (origó) ellenőrzése
+			if (scalar_proj <= 0)
+			{
+				// Ha a skaláris projektálás nulla vagy negatív, 
+				// a vetület a sugár kezdőpontjához (origóhoz) van a legközelebb.
+				return Vector2.Zero;
+			}
+			else
+			{
+				// 3. Vetület a sugáron
+				return rayDir * scalar_proj;
+			}
+		}
+	}
+	public class RVO
+	{
+		public RVO(Vector2 leftaxis, Vector2 rightaxis, Vector2 apex)
+		{
+			this.leftaxis = leftaxis;
+			this.rightaxis = rightaxis;
+			this.apex = apex;
+		}
+
+		Vector2 leftaxis { get; set; }
+		Vector2 rightaxis { get; set; }
+		Vector2 apex { get; set; }
+
+	}
+	public class ORCAConstraint
+	{
+		// P: A referencia pont a fél-síkon (a v_pref + u/2 pont).
+		public Vector2 P { get; private set; }
+
+		// N: A normálvektor, amely a biztonságos oldal felé mutat.
+		public Vector2 N { get; private set; }
+
+		public ORCAConstraint(Vector2 referencePoint, Vector2 normalVector)
+		{
+			P = referencePoint;
+			N = normalVector;
+		}
+
+		
+		/// Ellenőrzi, hogy a megadott sebesség (v) megsérti-e a megszorítást.
+		public bool IsViolated(Vector2 v)
+		{
+			// Ha (v - P) · N < 0, akkor a sebesség a tiltott oldalon van.
+			return Vector2.Dot(v - P, N) < 0;
 		}
 	}
 }
