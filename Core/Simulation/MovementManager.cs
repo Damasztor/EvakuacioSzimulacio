@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 //using System.Numerics;
 
 namespace EvakuacioSzimulacio.Core.Simulation
@@ -64,6 +65,51 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					;//debug line
 				}
 
+				//---------------------------------------------------------------------Path kezdődik------------------------------------------------------------------
+				//Először számolja ki a path-ot, azután lépjen
+				if (target != Vector2.Zero && target != p.lastTarget)
+				{
+
+					var startCell = new Vector2((int)(p.Position.X / tileMap.tileSize), (int)(p.Position.Y / tileMap.tileSize));
+					var targetCell = new Vector2((int)(target.X / tileMap.tileSize), (int)(target.Y / tileMap.tileSize));
+
+					List<Node> path = AStarPathfinding.AStarPathFinding(tileMap, startCell, targetCell);
+					if (path != null)
+					{
+						p.Path = new List<Node>(path);
+						p.lastTarget = target;
+					}
+
+
+				}
+				if (p.Path != null && p.Path.Count > 0)
+				{
+					p.DesiredVelocity = p.Position - new Vector2(p.Path[0].X * 32, p.Path[0].Y * 32);
+					Vector2 nextCellCenter = new Vector2(p.Path[0].X * tileMap.tileSize + tileMap.tileSize / 2, p.Path[0].Y * tileMap.tileSize + tileMap.tileSize / 2);
+					Vector2 pathDirection = nextCellCenter - p.Position;
+					float pullStrength = 4f;
+
+					if (pathDirection != Vector2.Zero)
+					{
+						pathDirection = Vector2.Normalize(pathDirection);
+					}
+					p.Direction += pathDirection * pullStrength;
+					int xPos = (int)p.Position.X;
+					int yPos = (int)p.Position.Y;
+					int xTarget = (int)nextCellCenter.X;
+					int yTarget = (int)nextCellCenter.Y;
+
+					//Debug.WriteLine($"{xTarget / 32} == {xPos / 32} és {yTarget / 32} == {yPos / 32}");
+
+					if (xTarget / tileMap.tileSize == xPos / tileMap.tileSize && yTarget / tileMap.tileSize == yPos / tileMap.tileSize)
+					{
+						p.Path.RemoveAt(0);
+						//Debug.WriteLine("removed " + p.Path.Count);
+					}
+				}
+
+				//------------------------------------------------------------------------Path vége-----------------------------------------------------------
+				//-----------------------------------------------------------------------Desired velocity kiszámolása------------------------------------------
 				Vector2 v_pref = Vector2.Zero;
 				if (p.Path != null && p.Path.Count > 0)
 				{
@@ -88,6 +134,11 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				}
 				p.DesiredVelocity = v_pref;
 
+				//----------------------------------------------------------------------Desired velocity kiszámolásának a vége------------------------------------------------
+
+
+
+
 				//--------------------------------------------------------------------------------------ORCA implementáció------------------------------------------------------------------------------
 				personRVO.Clear();
 				personORCAConstraints.Clear();
@@ -110,14 +161,17 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					Vector2 left = betweenDirection * cos + perpendicularVector * sin;
 					Vector2 right = betweenDirection * cos - perpendicularVector * sin;
 
-					left += sumVelocityVectorPerTwo;
-					right += sumVelocityVectorPerTwo;
-					Vector2 apex = sumVelocityVectorPerTwo;
+					//left += sumVelocityVectorPerTwo;
+					//right += sumVelocityVectorPerTwo;
+					//Vector2 apex = sumVelocityVectorPerTwo;
+					RVO rvoToAdd = new RVO(left, right, new Vector2(0, 0));
+					personRVO.Add(rvoToAdd);
 
-					personRVO.Add(new RVO(left, right, apex));
+					Vector2 relativeVelocity = p.Direction - nearppl.Direction;
+					float tau = 2f; //Mennyi időváltozás legyen az, ami alatt javítanak a helyzetükön
+					Vector2 tauCircleMiddlePoint = betweenVectorTwoCenter / tau;
 
-
-
+					Vector2 closestPointOnRVO = rvoToAdd.ClosestPointProjectionOnRVO(p.DesiredVelocity, tauCircleMiddlePoint, sumRadius / tau);
 
 
 
@@ -171,7 +225,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				//}
 				//-------------------------------------------------------------------------------Régi implementáció vége----------------------------------------------------------------------------
 
-
+				//-------------------------------------------------------------------------------Tile számolás-----------------------------------------------------------------------------
 				foreach (var neartiles in nearbyTiles)
 				{
 					var distance = Vector2.Distance(p.Position, neartiles.Center);
@@ -217,47 +271,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				}
 
-				if (target != Vector2.Zero && target != p.lastTarget)
-				{
-
-					var startCell = new Vector2((int)(p.Position.X / tileMap.tileSize), (int)(p.Position.Y / tileMap.tileSize));
-					var targetCell = new Vector2((int)(target.X / tileMap.tileSize), (int)(target.Y / tileMap.tileSize));
-
-					List<Node> path = AStarPathfinding.AStarPathFinding(tileMap, startCell, targetCell);
-					if (path != null)
-					{
-						p.Path = new List<Node>(path);
-						p.lastTarget = target;
-					}
-
-
-				}
-				if (p.Path != null && p.Path.Count > 0)
-				{
-					p.DesiredVelocity = p.Position - new Vector2(p.Path[0].X*32, p.Path[0].Y*32);
-					Vector2 nextCellCenter = new Vector2(p.Path[0].X * tileMap.tileSize + tileMap.tileSize / 2, p.Path[0].Y * tileMap.tileSize + tileMap.tileSize / 2);
-					Vector2 pathDirection = nextCellCenter - p.Position;
-					float pullStrength = 4f;
-
-					if (pathDirection != Vector2.Zero)
-					{
-						pathDirection = Vector2.Normalize(pathDirection);
-					}
-					p.Direction += pathDirection * pullStrength;
-					int xPos = (int)p.Position.X;
-					int yPos = (int)p.Position.Y;
-					int xTarget = (int)nextCellCenter.X;
-					int yTarget = (int)nextCellCenter.Y;
-
-					//Debug.WriteLine($"{xTarget / 32} == {xPos / 32} és {yTarget / 32} == {yPos / 32}");
-
-					if (xTarget / tileMap.tileSize == xPos / tileMap.tileSize && yTarget / tileMap.tileSize == yPos / tileMap.tileSize)
-					{
-						p.Path.RemoveAt(0);
-						//Debug.WriteLine("removed " + p.Path.Count);
-					}
-				}
-
+				
+				//----------------------------------------------------------------------------------Tile számolás vége---------------------------------------------------------------------
 
 
 				float length = p.Direction.Length();
@@ -384,7 +399,62 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		Vector2 leftaxis { get; set; }
 		Vector2 rightaxis { get; set; }
 		Vector2 apex { get; set; }
+		public Vector2 ClosestPointProjectionOnRVO(Vector2 vector, Vector2 circleMiddlePoint, float circleRadius)
+		{
+			Vector2 result = Vector2.Zero;
+			Vector2 leftProjected = Vector2.Zero;
+			float leftDistance = 0f;
+			Vector2 rightProjected = Vector2.Zero;
+			float rightDistance = 0f;
+			Vector2 circleProjected = Vector2.Zero;
+			float circleDistance = 0f;
 
+			Vector2 leftAxisNormalized = Vector2.Normalize(leftaxis);
+			Vector2 rightAxisNormalized = Vector2.Normalize(rightaxis);
+			float leftproj = Vector2.Dot(circleMiddlePoint,leftAxisNormalized);
+			float rightproj = Vector2.Dot(circleMiddlePoint,rightAxisNormalized);
+			float leftlengthsquared = leftaxis.LengthSquared();
+			float rightlengthsquared = rightaxis.LengthSquared();
+			leftProjected = leftproj * leftAxisNormalized;
+			rightProjected = rightproj * rightAxisNormalized;
+
+
+			//félegyenes kezdőpontja, iránya, vetíteni kívánt pont
+			Vector2 leftstartPoint = leftProjected;
+			Vector2 leftdirection = leftaxis;
+			Vector2 rightstartPoint = rightProjected;
+			Vector2 rightdirection = rightaxis;
+			Vector2 Q = vector;
+
+			// paraméter a vetítéshez
+			float tleft = Vector2.Dot(Q - leftstartPoint, leftdirection) / leftdirection.LengthSquared();
+			float tright = Vector2.Dot(Q - rightstartPoint, rightdirection) / rightdirection.LengthSquared();
+			
+			if(tleft < 0 && tright < 0) //nev vetíthető egyik félegyenesre sem, a körív részre kell vetíteni
+			{
+
+			}
+			else if(tleft >= 0 && tright < 0) //left félegyenesre vetíthető másikra nem, így left félegyenesre kell vetíteni
+			{
+
+			}
+			else if(tleft < 0 && tright >= 0) //right félegyenesre vetíthető a másikra nem, így right félegyenesre kell vetíteni
+			{
+
+			}
+			else if(tleft >= 0 && tright >= 0) //left és right félegyenesre is vetíthető, így el kell dönteni, hogy melyik pont lesz a legközelebb a vetíteni kívánt ponthoz
+			{
+
+			}
+			else //valami hiba történt
+			{
+				
+			}
+
+
+
+			return result;
+		}
 	}
 	public class ORCAConstraint
 	{
