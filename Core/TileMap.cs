@@ -19,7 +19,7 @@ namespace EvakuacioSzimulacio.Core
 
 		public TileMap(GraphicsDevice graphicsDevice)
 		{
-			tileMap = TileMapMozi();
+			tileMap = TileMapMaker();
 
 			tileTexture = new Texture2D(graphicsDevice, 1, 1);
 			tileTexture.SetData(new[] {Color.White});
@@ -40,10 +40,10 @@ namespace EvakuacioSzimulacio.Core
 					// Falak a széleken
 					else if (x == 0 || y == 0 || x == mapSize - 1 || y == mapSize - 1)
 						type = TileType.Wall;
-					else if(rnd.Next(1,30) == 1)
-					{
-						type = TileType.Wall;
-					}
+					//else if(rnd.Next(1,30) == 1)
+					//{
+					//	type = TileType.Wall;
+					//}
 					else
 						type = TileType.Empty;
 

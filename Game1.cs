@@ -77,8 +77,13 @@ namespace EvakuacioSzimulacio
 			//		id++;
 			//	}
 			//}
-			_people.Add(new Person(0, _circleTexture, new Vector2(336,64), rnd.Next(50, 71), 10f));
-			_people.Add(new Person(1, _circleTexture, new Vector2(368,127), rnd.Next(50, 71), 10f));
+			//_people.Add(new Person(0, _circleTexture, new Vector2(336,64), rnd.Next(50, 71), 10f));
+			//_people.Add(new Person(1, _circleTexture, new Vector2(368,127), rnd.Next(50, 71), 10f));
+			_people.Add(new Person(0, _circleTexture, new Vector2(96, 192), 2, 10f));
+			_people.Add(new Person(1, _circleTexture, new Vector2(156, 192), 2, 10f));
+			_people[0].Target = new Vector2(156, 192);
+			_people[1].Target = new Vector2(96, 192);
+			
 
 			_movementManager = new MovementManager(_people,_map);
 
@@ -169,6 +174,10 @@ namespace EvakuacioSzimulacio
 				
 				//Debug.WriteLine(p.Position);
 				
+			}
+			foreach(var d in _movementManager.debuglist)
+			{
+				d.Draw(_spriteBatch);
 			}
 			_spriteBatch.End();
 

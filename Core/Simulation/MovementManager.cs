@@ -22,6 +22,17 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		public List<RVO> personRVO;
 		public List<ORCAConstraint> personORCAConstraints;
 
+
+
+		public List<Debug> debuglist;
+		Vector2 debugpos;
+		float debugradius;
+		Vector2 debugveloc;
+		Vector2 debugdesired;
+		Vector2 debugtarget;
+		Vector2 debugleftaxis;
+		Vector2 debugrightaxis;
+
 		public MovementManager(List<Person> people, TileMap tileMap)
 		{
 			People = people;
@@ -39,9 +50,11 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			this.tileMap = tileMap;
 			personRVO = new List<RVO>();
 			personORCAConstraints = new List<ORCAConstraint>();
+			debuglist = new List<Debug>();
 		}
 		public void WhereToMove(GameTime gameTime)
 		{
+			debuglist.Clear();
 			spatialGrid.Clear();
 			foreach (var p in People)
 			{
@@ -67,17 +80,18 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				//---------------------------------------------------------------------Path kezdődik------------------------------------------------------------------
 				//Először számolja ki a path-ot, azután lépjen
-				if (target != Vector2.Zero && target != p.lastTarget)
+				if (p.Target != Vector2.Zero && p.Target != p.lastTarget)
 				{
 
 					var startCell = new Vector2((int)(p.Position.X / tileMap.tileSize), (int)(p.Position.Y / tileMap.tileSize));
-					var targetCell = new Vector2((int)(target.X / tileMap.tileSize), (int)(target.Y / tileMap.tileSize));
+					var targetCell = new Vector2((int)(p.Target.X / tileMap.tileSize), (int)(p.Target.Y / tileMap.tileSize));
 
 					List<Node> path = AStarPathfinding.AStarPathFinding(tileMap, startCell, targetCell);
 					if (path != null)
 					{
 						p.Path = new List<Node>(path);
-						p.lastTarget = target;
+						p.lastTarget = p.Target;
+						debugtarget = p.Target;
 					}
 
 
@@ -133,6 +147,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					// Ha distanceToTarget == 0, v_pref marad Vector2.Zero
 				}
 				p.DesiredVelocity = v_pref;
+				debugdesired = v_pref;
+				debugradius = p.Hitbox.Radius;
 
 				//----------------------------------------------------------------------Desired velocity kiszámolásának a vége------------------------------------------------
 
@@ -167,19 +183,69 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					RVO rvoToAdd = new RVO(left, right, new Vector2(0, 0));
 					personRVO.Add(rvoToAdd);
 
+					debugleftaxis = left;
+					debugrightaxis = right;
+
 					Vector2 relativeVelocity = p.Direction - nearppl.Direction;
 					float tau = 2f; //Mennyi időváltozás legyen az, ami alatt javítanak a helyzetükön
 					Vector2 tauCircleMiddlePoint = betweenVectorTwoCenter / tau;
 
-					Vector2 closestPointOnRVO = rvoToAdd.ClosestPointProjectionOnRVO(p.DesiredVelocity, tauCircleMiddlePoint, sumRadius / tau);
+					Vector2 closestPointOnRVO = rvoToAdd.ClosestPointProjectionOnRVO(relativeVelocity, tauCircleMiddlePoint, sumRadius / tau);
 
+					
 
-
-
+					Vector2 HalfPanePoint = p.DesiredVelocity + (closestPointOnRVO / 2);
+					Vector2 HalfPaneDirectionVector = new Vector2(-closestPointOnRVO.Y, closestPointOnRVO.X);
+					HalfPaneDirectionVector = Vector2.Normalize(HalfPaneDirectionVector);
+					if (!rvoToAdd.directionIsInTheForbiddenWay)
+					{
+						closestPointOnRVO = closestPointOnRVO * -1;
+					}
+					ORCAConstraint orcaToAdd = new ORCAConstraint(HalfPanePoint, closestPointOnRVO, HalfPaneDirectionVector);
+					personORCAConstraints.Add(orcaToAdd);
 				}
-				
+
+				bool anyViolated = true;
+				int maxIteration = 20;
+				int iteration = 0;
+				Vector2 newVelocity = p.DesiredVelocity;
+				while(anyViolated && iteration < maxIteration)
+				{
+					int orcabadamount = 0;
+					foreach(var orca in personORCAConstraints)
+					{
+						if (orca.IsViolated(newVelocity))
+						{
+							orcabadamount++;
+							newVelocity = ClosestPointOnLine(orca.P, orca.D, newVelocity);
+						}
+					}
+					if(orcabadamount == personORCAConstraints.Count) anyViolated = false;
+					iteration++;
+				}
+				if(!anyViolated)
+				{
+					p.Direction = newVelocity;
+					debugveloc = newVelocity;
+				}
 				//-------------------------------------------------------------------------------ORCA implementáció vége--------------------------------------------------------------------------------
 
+				//-------------------------------------------------------------------------------Egyszerű ütközésgátló logika---------------------------------------------------------------------------
+				//foreach(var nearppl in nearbyPeople)
+				//{
+				//	if(collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
+				//	{
+				//		Vector2 betweenVector = nearppl.Position - p.Position;
+				//		float lenght = betweenVector.Length();
+				//		float correctionLenght = p.Hitbox.Radius + nearppl.Hitbox.Radius - lenght;
+				//		betweenVector = Vector2.Normalize(betweenVector);
+				//		betweenVector *= correctionLenght;
+						
+				//		betweenVector = betweenVector / 2;
+				//		p.Position -= betweenVector;
+				//	}
+				//}
+				//-------------------------------------------------------------------------------Ütközésgátló logika vége------------------------------------------------------------------------------
 
 				//-------------------------------------------------------------------Régi implementáció, ha ütköznek akkor módosítanak------------------------------------------------------------
 				//foreach(var nearppl in nearbyPeople)
@@ -325,6 +391,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				//Debug.WriteLine("position :" + p.Position + " speed: " + p.Direction.Length() + " direction: " + p.Direction);
 				p.Hitbox.Center = p.Position;
+				debugpos = p.Position;
+				
 
 
 				//Ha rálép az exit tile-ra, akkor kiszedjük a listából, így a következő frameben már kirajzolni se fogjuk
@@ -334,7 +402,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				}
 
 
-
+				debuglist.Add(new Debug(debugpos, debugradius, debugveloc, debugdesired, debugtarget, debugleftaxis, debugrightaxis));
 
 
 			}
@@ -386,6 +454,18 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				return rayDir * scalar_proj;
 			}
 		}
+		public static Vector2 ClosestPointOnLine(Vector2 P, Vector2 D, Vector2 point)
+		{
+			// Normalizáljuk az irányvektort
+			Vector2 dirNormalized = Vector2.Normalize(D);
+
+			// Vetítési paraméter t
+			float t = Vector2.Dot(point - P, dirNormalized);
+
+			// Vetített pont
+			Vector2 closestPoint = P + dirNormalized * t;
+			return closestPoint;
+		}
 	}
 	public class RVO
 	{
@@ -399,6 +479,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		Vector2 leftaxis { get; set; }
 		Vector2 rightaxis { get; set; }
 		Vector2 apex { get; set; }
+		public bool directionIsInTheForbiddenWay { get; set; }
 		public Vector2 ClosestPointProjectionOnRVO(Vector2 vector, Vector2 circleMiddlePoint, float circleRadius)
 		{
 			Vector2 result = Vector2.Zero;
@@ -464,22 +545,40 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			}
 
 
+			result = result - vector;
+
+			Vector2 leftNormal = new Vector2(-leftaxis.Y, leftaxis.X);
+			Vector2 rightNormal = new Vector2(rightaxis.Y, -rightaxis.X);
+
+			bool leftViolated = Vector2.Dot(vector - apex, leftNormal) < 0;
+			bool rightViolated = Vector2.Dot(vector - apex, rightNormal) < 0;
+
+			bool insideEdge = leftViolated && rightViolated;
+			bool insideCircle = (vector - circleMiddlePoint).Length() < circleRadius;
+
+			directionIsInTheForbiddenWay = insideEdge || insideCircle;
+
+
 
 			return result;
 		}
+		
 	}
 	public class ORCAConstraint
 	{
 		// P: A referencia pont a fél-síkon (a v_pref + u/2 pont).
 		public Vector2 P { get; private set; }
 
-		// N: A normálvektor, amely a biztonságos oldal felé mutat.
+		// N: A normálvektor, amely a tiltott oldal felé mutat
 		public Vector2 N { get; private set; }
+		// P: irányvektor
+		public Vector2 D { get; private set; }
 
-		public ORCAConstraint(Vector2 referencePoint, Vector2 normalVector)
+		public ORCAConstraint(Vector2 referencePoint, Vector2 normalVector, Vector2 directionVector)
 		{
 			P = referencePoint;
 			N = normalVector;
+			D = directionVector;
 		}
 
 		
@@ -490,4 +589,5 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			return Vector2.Dot(v - P, N) < 0;
 		}
 	}
+	
 }
