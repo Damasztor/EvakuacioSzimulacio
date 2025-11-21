@@ -32,10 +32,10 @@ namespace EvakuacioSzimulacio.Core
             direction = new Vector2(0, 0);
         }
 
-        public Vector2 NextPositionOption(GameTime gameTime)
-        {
-            return Position + Direction * Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
-        }
+        //public Vector2 NextPositionOption(GameTime gameTime)
+        //{
+        //    return Position + Direction * Speed * (float)gameTime.ElapsedGameTime.TotalSeconds;
+        //}
 
         public void Draw(SpriteBatch spriteBatch, Color color, SpriteFont font)
         {

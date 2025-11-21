@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 //using System.Windows.Forms;
 //using System.Windows.Forms;
 //using System.Drawing;
@@ -79,11 +80,11 @@ namespace EvakuacioSzimulacio
 			//}
 			//_people.Add(new Person(0, _circleTexture, new Vector2(336,64), rnd.Next(50, 71), 10f));
 			//_people.Add(new Person(1, _circleTexture, new Vector2(368,127), rnd.Next(50, 71), 10f));
-			_people.Add(new Person(0, _circleTexture, new Vector2(96, 192), 2, 10f));
-			_people.Add(new Person(1, _circleTexture, new Vector2(156, 192), 2, 10f));
-			_people[0].Target = new Vector2(156, 192);
-			_people[1].Target = new Vector2(96, 192);
-			
+			_people.Add(new Person(0, _circleTexture, new Vector2(112, 208), 5, 10f));
+			_people.Add(new Person(1, _circleTexture, new Vector2(208, 218), 5, 10f));
+			_people[0].Target = new Vector2(208, 208);
+			_people[1].Target = new Vector2(112, 208);
+
 
 			_movementManager = new MovementManager(_people,_map);
 
@@ -114,6 +115,12 @@ namespace EvakuacioSzimulacio
 			//	p.Hitbox.Center = next;
 			//}
 			var mouse = Mouse.GetState();
+			int scrollDelta = mouse.ScrollWheelValue; // aktuális görgő pozíció
+			int previousScrollValue = 0;
+			scrollDelta = mouse.ScrollWheelValue - previousScrollValue;
+
+			_camera.AddZoom(scrollDelta * 0.00001f); // érzékenység állítható
+			previousScrollValue = mouse.ScrollWheelValue;
 			if (mouse.LeftButton == ButtonState.Pressed)
 			{
 				Point MovedCameraPosition = new Point(mouse.Position.X + (int)CameraPosition.X, mouse.Position.Y + (int)CameraPosition.Y);
@@ -161,6 +168,7 @@ namespace EvakuacioSzimulacio
 
 		protected override void Draw(GameTime gameTime)
 		{
+			KeyboardState state = Keyboard.GetState();
 			GraphicsDevice.Clear(Color.CornflowerBlue);
 			
 			_spriteBatch.Begin(transformMatrix: _camera.Transform);
@@ -171,16 +179,23 @@ namespace EvakuacioSzimulacio
 			foreach(Person p in _people)
 			{
 				p.Draw(_spriteBatch,p.Hitbox.Coloring,font);
-				
 				//Debug.WriteLine(p.Position);
+				DrawCircle(_spriteBatch, p.Target, 5, Color.AliceBlue);
+
 				
 			}
+			int i = 0;
 			foreach(var d in _movementManager.debuglist)
 			{
+				if (i == 1) break;
+				//i++;
 				d.Draw(_spriteBatch);
 			}
 			_spriteBatch.End();
-
+			if (state.IsKeyDown(Keys.A))
+			{
+				Thread.Sleep(15000);
+			}
 
 			base.Draw(gameTime);
 		}
@@ -205,19 +220,45 @@ namespace EvakuacioSzimulacio
 				0
 			);
 		}
+		private void DrawCircle(SpriteBatch sb, Vector2 center, float radius, Color color, int segments = 20)
+		{
+			Vector2 prev = center + new Vector2(radius, 0);
+			float increment = MathF.Tau / segments;
+
+			for (int i = 1; i <= segments; i++)
+			{
+				float angle = i * increment;
+				Vector2 next = center + new Vector2(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius);
+				DrawLine(sb, prev, next, color);
+				prev = next;
+			}
+		}
 	}
 	public class Camera
 	{
 		public Matrix Transform { get; private set; }
 		public Vector2 Position { get; private set; }
 		public float MoveSpeed = 5f;
+		public float Zoom { get; private set; } = 1f;  // alapértelmezett 1 = 100%
+
 		public void Move(Vector2 direction)
 		{
 			Position += direction * MoveSpeed;
 		}
+
 		public void Update()
 		{
-			Transform = Matrix.CreateTranslation(new Vector3(-Position.X, -Position.Y , 0));
+			// Létrehozzuk a transform mátrixot a pozíció és zoom alapján
+			Transform =
+				Matrix.CreateTranslation(new Vector3(-Position.X, -Position.Y, 0)) *
+				Matrix.CreateScale(Zoom, Zoom, 1f);
+		}
+
+		// Új: zoom kezelés
+		public void AddZoom(float amount)
+		{
+			Zoom += amount;
+			Zoom = MathHelper.Clamp(Zoom, 0.1f, 5f); // például min 0.1, max 5
 		}
 	}
 }

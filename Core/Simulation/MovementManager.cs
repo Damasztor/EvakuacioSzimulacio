@@ -32,6 +32,14 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		Vector2 debugtarget;
 		Vector2 debugleftaxis;
 		Vector2 debugrightaxis;
+		Vector2 debugtaucirclemiddle;
+		float debugtaucircleradius;
+		Vector2 debugcirclemiddle;
+		float debugcircleradius;
+		Vector2 debugprojectedpoint;
+		Vector2 debugorcapoint;
+		Vector2 debugorcadirection;
+		Vector2 debugnewveloc;
 
 		public MovementManager(List<Person> people, TileMap tileMap)
 		{
@@ -54,6 +62,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		}
 		public void WhereToMove(GameTime gameTime)
 		{
+			float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 			debuglist.Clear();
 			spatialGrid.Clear();
 			foreach (var p in People)
@@ -163,7 +172,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					float sumRadius = p.Hitbox.Radius + nearppl.Hitbox.Radius;
 
 					Vector2 otherPosition = nearppl.Position;
-					Vector2 betweenVectorTwoCenter = otherPosition - p.Position;
+					Vector2 betweenVectorTwoCenter = otherPosition - p.Position;					debugcirclemiddle = betweenVectorTwoCenter;debugcircleradius = sumRadius;
 					float distanceBetweenTwoCenter = betweenVectorTwoCenter.Length();
 					
 					Vector2 betweenDirection = Vector2.Normalize(betweenVectorTwoCenter);
@@ -187,60 +196,76 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					debugrightaxis = right;
 
 					Vector2 relativeVelocity = p.Direction - nearppl.Direction;
-					float tau = 2f; //Mennyi időváltozás legyen az, ami alatt javítanak a helyzetükön
+					float tau = 1.2f; //Mennyi időváltozás legyen az, ami alatt javítanak a helyzetükön
 					Vector2 tauCircleMiddlePoint = betweenVectorTwoCenter / tau;
+					debugtaucirclemiddle = tauCircleMiddlePoint;
+					debugtaucircleradius = sumRadius / tau;
 
-					Vector2 closestPointOnRVO = rvoToAdd.ClosestPointProjectionOnRVO(relativeVelocity, tauCircleMiddlePoint, sumRadius / tau);
+					Vector2 closestPointOnRVO = rvoToAdd.ClosestPointProjectionOnRVO(relativeVelocity, tauCircleMiddlePoint, sumRadius / tau);			debugprojectedpoint = closestPointOnRVO;
 
-					
+					//if (rvoToAdd.isinside)
+					//{
+					//	p.Direction = closestPointOnRVO;
+					//}
+					//else
+					//{
+					//	p.Direction = p.DesiredVelocity;
+					//}
+					//p.Direction = closestPointOnRVO;
 
-					Vector2 HalfPanePoint = p.DesiredVelocity + (closestPointOnRVO / 2);
-					Vector2 HalfPaneDirectionVector = new Vector2(-closestPointOnRVO.Y, closestPointOnRVO.X);
-					HalfPaneDirectionVector = Vector2.Normalize(HalfPaneDirectionVector);
-					if (!rvoToAdd.directionIsInTheForbiddenWay)
+					Vector2 HalfPanePoint = p.DesiredVelocity + (closestPointOnRVO * 2f);																/*debugprojectedpoint = HalfPanePoint;*/
+
+					Vector2 N = closestPointOnRVO;
+					if (rvoToAdd.directionIsInTheForbiddenWay)
 					{
-						closestPointOnRVO = closestPointOnRVO * -1;
+						N = -N;
+						//closestPointOnRVO = closestPointOnRVO * -1;
 					}
-					ORCAConstraint orcaToAdd = new ORCAConstraint(HalfPanePoint, closestPointOnRVO, HalfPaneDirectionVector);
+					Vector2 HalfPaneDirectionVector = new Vector2(-N.Y, N.X);
+					HalfPaneDirectionVector = Vector2.Normalize(HalfPaneDirectionVector);
+					ORCAConstraint orcaToAdd = new ORCAConstraint(HalfPanePoint, N, HalfPaneDirectionVector);							debugorcadirection = HalfPaneDirectionVector; debugorcapoint = HalfPanePoint;
 					personORCAConstraints.Add(orcaToAdd);
-				}
 
+				}
+				
 				bool anyViolated = true;
 				int maxIteration = 20;
 				int iteration = 0;
 				Vector2 newVelocity = p.DesiredVelocity;
-				while(anyViolated && iteration < maxIteration)
+				while (anyViolated && iteration < maxIteration)
 				{
 					int orcabadamount = 0;
-					foreach(var orca in personORCAConstraints)
+					foreach (var orca in personORCAConstraints)
 					{
 						if (orca.IsViolated(newVelocity))
 						{
 							orcabadamount++;
-							newVelocity = ClosestPointOnLine(orca.P, orca.D, newVelocity);
+							newVelocity = orca.Project(newVelocity);
 						}
 					}
-					if(orcabadamount == personORCAConstraints.Count) anyViolated = false;
+					if (orcabadamount == 0) anyViolated = false;
 					iteration++;
 				}
-				if(!anyViolated)
+				if (!anyViolated)
 				{
-					p.Direction = newVelocity;
-					debugveloc = newVelocity;
+					p.Direction = newVelocity; debugveloc = newVelocity;
+
 				}
+				p.Direction = newVelocity; debugnewveloc = newVelocity;
+
 				//-------------------------------------------------------------------------------ORCA implementáció vége--------------------------------------------------------------------------------
 
 				//-------------------------------------------------------------------------------Egyszerű ütközésgátló logika---------------------------------------------------------------------------
-				//foreach(var nearppl in nearbyPeople)
+				//foreach (var nearppl in nearbyPeople)
 				//{
-				//	if(collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
+				//	if (collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
 				//	{
 				//		Vector2 betweenVector = nearppl.Position - p.Position;
 				//		float lenght = betweenVector.Length();
 				//		float correctionLenght = p.Hitbox.Radius + nearppl.Hitbox.Radius - lenght;
 				//		betweenVector = Vector2.Normalize(betweenVector);
 				//		betweenVector *= correctionLenght;
-						
+
 				//		betweenVector = betweenVector / 2;
 				//		p.Position -= betweenVector;
 				//	}
@@ -337,7 +362,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				}
 
-				
+
 				//----------------------------------------------------------------------------------Tile számolás vége---------------------------------------------------------------------
 
 
@@ -350,7 +375,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 
 				if (p.Direction.Length() < p.Speed - speedTolerance)
 				{
-					float accel = (float)acceleration.Length() * (float)gameTime.ElapsedGameTime.TotalSeconds;
+					float accel = (float)acceleration.Length() * dt;
 					Vector2 dirNorm = Vector2.Zero;
 					if (p.Direction != Vector2.Zero)
 					{
@@ -382,9 +407,12 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					int tileY = (int)(p.Position.Y / tileMap.tileSize);
 
 					p.CurrentTile = tileMap.tileMap[tileX, tileY];
-					p.Position += p.Direction * (float)gameTime.ElapsedGameTime.TotalSeconds / p.CurrentTile.MovementCost;
+					
 				}
+				
 
+				
+				p.Position += p.Direction * dt / p.CurrentTile.MovementCost;
 
 
 
@@ -402,7 +430,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 				}
 
 
-				debuglist.Add(new Debug(debugpos, debugradius, debugveloc, debugdesired, debugtarget, debugleftaxis, debugrightaxis));
+				debuglist.Add(new Debug(debugpos, debugradius, debugveloc, debugdesired, debugtarget, debugleftaxis, debugrightaxis, 
+					debugtaucirclemiddle, debugtaucircleradius, debugcirclemiddle, debugcircleradius, debugprojectedpoint,debugorcapoint, debugorcadirection,debugnewveloc));
 
 
 			}
@@ -480,6 +509,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		Vector2 rightaxis { get; set; }
 		Vector2 apex { get; set; }
 		public bool directionIsInTheForbiddenWay { get; set; }
+		public bool isinside {  get; set; }
 		public Vector2 ClosestPointProjectionOnRVO(Vector2 vector, Vector2 circleMiddlePoint, float circleRadius)
 		{
 			Vector2 result = Vector2.Zero;
@@ -510,7 +540,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			// paraméter a vetítéshez
 			float tleft = Vector2.Dot(Q - leftstartPoint, leftdirection) / leftdirection.LengthSquared();
 			float tright = Vector2.Dot(Q - rightstartPoint, rightdirection) / rightdirection.LengthSquared();
-			
+			isinside = false;
 			if(tleft < 0 && tright < 0) //nev vetíthető egyik félegyenesre sem, a körív részre kell vetíteni
 			{
 				Vector2 directionformcircle = Q - circleMiddlePoint;
@@ -528,6 +558,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			}
 			else if(tleft >= 0 && tright >= 0) //left és right félegyenesre is vetíthető, így el kell dönteni, hogy melyik pont lesz a legközelebb a vetíteni kívánt ponthoz
 			{
+				isinside = true;
 				float distleft = Vector2.Distance(leftstartPoint + leftdirection * tleft, Q);
 				float distright = Vector2.Distance(rightstartPoint + rightdirection * tright, Q);
 				if(distleft < distright)
@@ -541,7 +572,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			}
 			else //valami hiba történt
 			{
-				
+				//result = new Vector2(-100,-100);
 			}
 
 
@@ -557,8 +588,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 			bool insideCircle = (vector - circleMiddlePoint).Length() < circleRadius;
 
 			directionIsInTheForbiddenWay = insideEdge || insideCircle;
-
-
+			if (insideEdge || insideCircle) isinside = true;
 
 			return result;
 		}
@@ -577,8 +607,8 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		public ORCAConstraint(Vector2 referencePoint, Vector2 normalVector, Vector2 directionVector)
 		{
 			P = referencePoint;
-			N = normalVector;
-			D = directionVector;
+			N = Vector2.Normalize(normalVector);
+			D = Vector2.Normalize(directionVector);
 		}
 
 		
@@ -586,7 +616,12 @@ namespace EvakuacioSzimulacio.Core.Simulation
 		public bool IsViolated(Vector2 v)
 		{
 			// Ha (v - P) · N < 0, akkor a sebesség a tiltott oldalon van.
-			return Vector2.Dot(v - P, N) < 0;
+			return Vector2.Dot(v - P, N) > 0;
+		}
+		public Vector2 Project(Vector2 v)
+		{
+			float dist = Vector2.Dot(v - P, N);
+			return v - dist * N * 1.5f;
 		}
 	}
 	
