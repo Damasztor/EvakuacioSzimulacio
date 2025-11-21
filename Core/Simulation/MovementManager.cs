@@ -143,7 +143,7 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					// Feltételezzük, hogy a p.Speed a MaxSpeed
 					float maxSpeed = p.Speed;
 
-					if (distanceToTarget < maxSpeed)
+					if (distanceToTarget < 16)
 					{
 						// Target közel van: lassíts, hogy ne lőj túl rajta
 						v_pref = vectorToTarget;
@@ -251,25 +251,29 @@ namespace EvakuacioSzimulacio.Core.Simulation
 					p.Direction = newVelocity; debugveloc = newVelocity;
 
 				}
-				p.Direction = newVelocity; debugnewveloc = newVelocity;
+				else if(anyViolated && iteration == maxIteration)
+				{
+					p.Direction = Vector2.Zero; debugveloc = newVelocity;
+				}
+				//p.Direction = newVelocity; debugnewveloc = newVelocity;
 
 				//-------------------------------------------------------------------------------ORCA implementáció vége--------------------------------------------------------------------------------
 
 				//-------------------------------------------------------------------------------Egyszerű ütközésgátló logika---------------------------------------------------------------------------
-				//foreach (var nearppl in nearbyPeople)
-				//{
-				//	if (collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
-				//	{
-				//		Vector2 betweenVector = nearppl.Position - p.Position;
-				//		float lenght = betweenVector.Length();
-				//		float correctionLenght = p.Hitbox.Radius + nearppl.Hitbox.Radius - lenght;
-				//		betweenVector = Vector2.Normalize(betweenVector);
-				//		betweenVector *= correctionLenght;
+				foreach (var nearppl in nearbyPeople)
+				{
+					if (collisionManager.Intersects(p.Hitbox, nearppl.Hitbox))
+					{
+						Vector2 betweenVector = nearppl.Position - p.Position;
+						float lenght = betweenVector.Length();
+						float correctionLenght = p.Hitbox.Radius + nearppl.Hitbox.Radius - lenght;
+						betweenVector = Vector2.Normalize(betweenVector);
+						betweenVector *= correctionLenght;
 
-				//		betweenVector = betweenVector / 2;
-				//		p.Position -= betweenVector;
-				//	}
-				//}
+						betweenVector = betweenVector / 2;
+						p.Position -= betweenVector;
+					}
+				}
 				//-------------------------------------------------------------------------------Ütközésgátló logika vége------------------------------------------------------------------------------
 
 				//-------------------------------------------------------------------Régi implementáció, ha ütköznek akkor módosítanak------------------------------------------------------------

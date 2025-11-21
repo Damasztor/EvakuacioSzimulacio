@@ -70,20 +70,20 @@ namespace EvakuacioSzimulacio
 			////_people[3].Direction = new Vector2(1, 5);
 
 			int id = 0;
-			//foreach(var l in _map.tileMap)
-			//{
-			//	if(l.Type == TileType.Chair && rnd.Next(1,21) < 2)
-			//	{
-			//		_people.Add(new Person(id, _circleTexture, l.Center, rnd.Next(50, 71), 10f));
-			//		id++;
-			//	}
-			//}
-			//_people.Add(new Person(0, _circleTexture, new Vector2(336,64), rnd.Next(50, 71), 10f));
-			//_people.Add(new Person(1, _circleTexture, new Vector2(368,127), rnd.Next(50, 71), 10f));
-			_people.Add(new Person(0, _circleTexture, new Vector2(112, 208), 5, 10f));
-			_people.Add(new Person(1, _circleTexture, new Vector2(208, 218), 5, 10f));
-			_people[0].Target = new Vector2(208, 208);
-			_people[1].Target = new Vector2(112, 208);
+			foreach (var l in _map.tileMap)
+			{
+				if (l.Type == TileType.Chair && rnd.Next(1, 11) < 7)
+				{
+					_people.Add(new Person(id, _circleTexture, l.Center, rnd.Next(50, 71), 10f));
+					id++;
+				}
+			}
+			//_people.Add(new Person(0, _circleTexture, new Vector2(336, 64), rnd.Next(50, 71), 10f));
+			//_people.Add(new Person(1, _circleTexture, new Vector2(368, 127), rnd.Next(50, 71), 10f));
+			//_people.Add(new Person(0, _circleTexture, new Vector2(112, 208), 50, 10f));
+			//_people.Add(new Person(1, _circleTexture, new Vector2(208, 218), 50, 10f));
+			//_people[0].Target = new Vector2(208, 208);
+			//_people[1].Target = new Vector2(112, 208);
 
 
 			_movementManager = new MovementManager(_people,_map);
@@ -141,6 +141,10 @@ namespace EvakuacioSzimulacio
 				
 				
 			}
+			foreach(var p in _people)
+			{
+				p.Target = _target;
+			}
 
 			KeyboardState state = Keyboard.GetState();
 			Vector2 move = Vector2.Zero;
@@ -184,13 +188,13 @@ namespace EvakuacioSzimulacio
 
 				
 			}
-			int i = 0;
-			foreach(var d in _movementManager.debuglist)
-			{
-				if (i == 1) break;
-				//i++;
-				d.Draw(_spriteBatch);
-			}
+			//int i = 0;
+			//foreach(var d in _movementManager.debuglist)
+			//{
+			//	if (i == 1) break;
+			//	i++;
+			//	d.Draw(_spriteBatch);
+			//}
 			_spriteBatch.End();
 			if (state.IsKeyDown(Keys.A))
 			{

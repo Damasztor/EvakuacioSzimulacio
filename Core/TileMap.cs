@@ -19,7 +19,7 @@ namespace EvakuacioSzimulacio.Core
 
 		public TileMap(GraphicsDevice graphicsDevice)
 		{
-			tileMap = TileMapMaker();
+			tileMap = TileMapMozi();
 
 			tileTexture = new Texture2D(graphicsDevice, 1, 1);
 			tileTexture.SetData(new[] {Color.White});
